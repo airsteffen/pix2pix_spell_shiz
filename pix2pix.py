@@ -315,7 +315,7 @@ def load_examples():
             raise Exception("scale size cannot be less than crop size")
         return r
     
-    scale = tf.random_uniform([1], minval=286, maxval=300, dtype=tf.int32)
+    scale = tf.random_uniform([1], minval=256, maxval=256, dtype=tf.int32)
     with tf.name_scope("input_images"):
         input_images = transform(inputs, scale)
 
