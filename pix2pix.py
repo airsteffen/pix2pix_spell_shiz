@@ -47,10 +47,8 @@ parser.add_argument("--ndf", type=int, default=64, help="number of discriminator
 parser.add_argument("--scale_size", type=int, default=286, help="scale images to this size before cropping to 256x256")
 parser.add_argument("--flip", dest="flip", action="store_true", help="flip images horizontally")
 parser.add_argument("--no_flip", dest="flip", action="store_false", help="don't flip images horizontally")
-
-parser.set_defaults(no_flip=True)
-# parser.set_defaults(flip=True)
-
+# parser.set_defaults(no_flip=True)
+parser.set_defaults(flip=True)
 parser.add_argument("--lr", type=float, default=0.0002, help="initial learning rate for adam")
 parser.add_argument("--beta1", type=float, default=0.5, help="momentum term of adam")
 parser.add_argument("--l1_weight", type=float, default=100.0, help="weight on L1 term for generator gradient")
@@ -295,39 +293,34 @@ def load_examples():
         inputs, targets = [b_images, a_images]
     else:
         raise Exception("invalid direction")
-        
-# -------------------------------------------------------------------------------------------------------------------------------------
+
     # synchronize seed for image operations so that we do the same operations to both
     # input and output images
     seed = random.randint(0, 2**31 - 1)
-    def transform(image, scale):
+    def transform(image):
         r = image
         if a.flip:
             r = tf.image.random_flip_left_right(r, seed=seed)
 
         # area produces a nice downscaling, but does nearest neighbor for upscaling
         # assume we're going to be doing downscaling here
-        
-        r = tf.image.resize_images(r, [scale[0], scale[0]], method=tf.image.ResizeMethod.AREA)
+        r = tf.image.resize_images(r, [a.scale_size, a.scale_size], method=tf.image.ResizeMethod.AREA)
 
-        offset = tf.cast(tf.floor(tf.random_uniform([2], 0, tf.cast(scale[0], dtype=tf.float32) - CROP_SIZE + 1, seed=seed)), dtype=tf.int32)
+        offset = tf.cast(tf.floor(tf.random_uniform([2], 0, a.scale_size - CROP_SIZE + 1, seed=seed)), dtype=tf.int32)
         if a.scale_size > CROP_SIZE:
             r = tf.image.crop_to_bounding_box(r, offset[0], offset[1], CROP_SIZE, CROP_SIZE)
         elif a.scale_size < CROP_SIZE:
             raise Exception("scale size cannot be less than crop size")
         return r
-    
-    scale = tf.random_uniform([1], minval=256, maxval=257, dtype=tf.int32)
+
     with tf.name_scope("input_images"):
-        input_images = transform(inputs, scale)
+        input_images = transform(inputs)
 
     with tf.name_scope("target_images"):
-        target_images = transform(targets, scale)
+        target_images = transform(targets)
 
     paths_batch, inputs_batch, targets_batch = tf.train.batch([paths, input_images, target_images], batch_size=a.batch_size)
     steps_per_epoch = int(math.ceil(len(input_paths) / a.batch_size))
-# -------------------------------------------------------------------------------------------------------------------------------------
-
 
     return Examples(
         paths=paths_batch,
